@@ -59,6 +59,7 @@ jobs:
         # npm cache files are stored in `~/.npm` on Linux/macOS
         path: armbian_build/cache
           #key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
+          key: ${{ runner.os }}-build-${{ env.cache-name }}
           #restore-keys: |
             #${{ runner.os }}-build-${{ env.cache-name }}-
             #${{ runner.os }}-build-
