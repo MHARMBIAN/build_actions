@@ -23,6 +23,13 @@ env:
   BRANCH: current
   RELEASE: focal
   BUILD_DESKTOP: no
+  # REPOSITORY_INSTALL (comma-separated list): list of core packages which will be installed from repository
+  # Available options: u-boot, kernel, bsp, armbian-bsp-cli,armbian-bsp-desktop,armbian-desktop,armbian-config, armbian-firmware
+  # list, what is not wanted to be built
+  # U-Boot only:
+  # REPOSITORY_INSTALL: "kernel,armbian-bsp-cli,armbian-bsp-desktop,armbian-desktop,armbian-config,armbian-firmware"
+  REPOSITORY_INSTALL: ""
+  USE_MAINLINE_GOOGLE_MIRROR: yes
 
 jobs:
   build:
@@ -57,7 +64,9 @@ jobs:
         cache-name: cache-armbian-build
       with:
         # npm cache files are stored in `~/.npm` on Linux/macOS
-        path: armbian_build/cache
+        path: |
+          armbian_build/cache/toolchain
+          armbian_build/cache/rootfs
         key: ${{ runner.os }}-build-${{ env.cache-name }}
         #key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
         #restore-keys: |
@@ -69,8 +78,9 @@ jobs:
       id: build
       run: |
         cd armbian_build
-        sudo -E ./compile.sh BUILD_MINIMAL=$BUILD_MINIMAL KERNEL_ONLY=$KERNEL_ONLY KERNEL_CONFIGURE=$KERNEL_CONFIGURE BOARD=$BOARD BRANCH=$BRANCH RELEASE=$RELEASE BUILD_DESKTOP=$BUILD_DESKTOP FORCE_USE_RAMDISK=yes USE_CCACHE=yes
+        sudo -E ./compile.sh BUILD_MINIMAL=$BUILD_MINIMAL KERNEL_ONLY=$KERNEL_ONLY KERNEL_CONFIGURE=$KERNEL_CONFIGURE BOARD=$BOARD BRANCH=$BRANCH RELEASE=$RELEASE BUILD_DESKTOP=$BUILD_DESKTOP REPOSITORY_INSTALL=$REPOSITORY_INSTALL USE_MAINLINE_GOOGLE_MIRROR=$USE_MAINLINE_GOOGLE_MIRROR FORCE_USE_RAMDISK=yes USE_CCACHE=yes
         #shopt -s dotglob
+        # Update permission to cache - post cache task will fail otherwise
         sudo chmod -R 775 cache
         #shopt -u dotglob
         tar -cjvf /tmp/Armbian.tar.bz2 output/images/*.img
@@ -80,5 +90,5 @@ jobs:
       uses: actions/upload-artifact@master
       if: steps.build.outputs.status == 'success'
       with:
-        name: Armbian_firmware
+        name: Armbian_SDImage_$BOARD_$RELEASE_SOURCE_TAG
         path: /tmp/Armbian.tar.bz2
