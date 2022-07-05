@@ -70,8 +70,11 @@ jobs:
       run: |
         cd armbian_build
         sudo -E ./compile.sh BUILD_MINIMAL=$BUILD_MINIMAL KERNEL_ONLY=$KERNEL_ONLY KERNEL_CONFIGURE=$KERNEL_CONFIGURE BOARD=$BOARD BRANCH=$BRANCH RELEASE=$RELEASE BUILD_DESKTOP=$BUILD_DESKTOP FORCE_USE_RAMDISK=yes USE_CCACHE=yes
-        echo "::set-output name=status::success"
+        #shopt -s dotglob
+        sudo chmod -R 775 armbian_build/cache
+        #shopt -u dotglob
         tar -cjvf /tmp/Armbian.tar.bz2 output/images/*.img
+        echo "::set-output name=status::success"
 
     - name: Upload Armbian image
       uses: actions/upload-artifact@master
