@@ -15,7 +15,7 @@ on:
 #    types: started
 
 env:
-  RELEASE_SOURCE_TAG: v2021.05
+  RELEASE_SOURCE_TAG: v2022.07.05
   BUILD_MINIMAL: yes
   KERNEL_ONLY: no
   KERNEL_CONFIGURE: no
