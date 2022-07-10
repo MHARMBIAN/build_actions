@@ -97,6 +97,47 @@ const struct mtd_pairing_scheme dist3_pairing_scheme = {
 	.get_wunit = nand_pairing_dist3_get_wunit,
 };
 
+/*
+ * Distance-6 pairing works like distance-3 pairing, except that pages
+ * are taken two at a time.  The lsbit of the page number is chopped off
+ * and later re-added as the lsbit of the pair number.
+ */
+static int nand_pairing_dist6_get_info(struct mtd_info *mtd, int page,
+					struct mtd_pairing_info *info)
+{
+	bool last2pages, lsbit = page & 1;
+
+	page >>= 1;
+	last2pages = ((page + 1) * 2 * mtd->writesize) == mtd->erasesize;
+
+	page += (page != 0) + last2pages;
+
+	info->group = page & 1;
+	if (page & 1)
+		page -= 3;
+
+	info->pair = page | lsbit;
+	
+	return 0;
+}
+
+static int nand_pairing_dist6_get_wunit(struct mtd_info *mtd,
+					const struct mtd_pairing_info *info)
+{
+	int page = (info->pair & ~1) + (3 * info->group);
+	bool last2pages = (page * 2 * mtd->writesize) > mtd->erasesize;
+
+	page -= (page != 0) + last2pages;
+
+	return 2 * page + (info->pair & 1);
+}
+
+const struct mtd_pairing_scheme dist6_pairing_scheme = {
+	.ngroups = 2,
+	.get_info = nand_pairing_dist6_get_info,
+	.get_wunit = nand_pairing_dist6_get_wunit,
+};
+
 static int check_offs_len(struct nand_chip *chip, loff_t ofs, uint64_t len)
 {
 	int ret = 0;
