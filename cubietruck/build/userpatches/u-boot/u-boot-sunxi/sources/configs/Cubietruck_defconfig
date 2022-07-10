@@ -3,7 +3,7 @@ CONFIG_ARCH_SUNXI=y
 CONFIG_DEFAULT_DEVICE_TREE="sun7i-a20-cubietruck"
 CONFIG_SPL=y
 CONFIG_MACH_SUN7I=y
-CONFIG_DRAM_CLK=384
+CONFIG_DRAM_CLK=432
 CONFIG_MMC0_CD_PIN="PH1"
 CONFIG_USB0_VBUS_PIN="PH17"
 CONFIG_USB0_VBUS_DET="PH22"
@@ -30,3 +30,55 @@ CONFIG_USB_OHCI_HCD=y
 CONFIG_USB_MUSB_GADGET=y
 CONFIG_MMC_SUNXI_SLOT_EXTRA=2
 CONFIG_VIDEO_DE2=n
+#
+# NAND and NAND SPL support:
+#
+CONFIG_NAND=y
+CONFIG_NAND_SUNXI=y
+CONFIG_CMD_NAND=y
+CONFIG_MTD=y
+CONFIG_MTD_RAW_NAND=y
+#
+# SPL loader NAND offsets:
+#
+#CONFIG_SPL_NAND_SUPPORT=y
+#CONFIG_SYS_NAND_U_BOOT_LOCATIONS=y
+CONFIG_SYS_NAND_U_BOOT_OFFS=0x400000
+CONFIG_SYS_NAND_U_BOOT_OFFS_REDUND=0x600000
+#
+# Cubietruck comes with Hynix MLC NAND 27UCG8T2ATR-BC:
+#     Total size:   8GB
+#     Page size:    8kB  = 8192
+#     OOB per page: 640B = 640
+#     Block size:   2MB  = 0x200000
+#  
+#  Allwinner A20 SOC (SUN7I):
+#     ECC steps:     1kB = 1024 or 512b = 512
+#     ECC strength:
+#     - boot0 page:  24bits or 40bits or 64bits
+#     - normal page: 40bits
+#        
+# The following image-builder config may work for boot0 - usable page size, ECC strength, ECC steps:
+#     -u 1024  -c 64/1024
+#     -u 1024  -c 64/512
+#     -u 8192  -c 24/1024
+#     -u 8192  -c 40/1024
+#     -u 4096  -c 64/1024
+#     -u 4096  -c 64/512
+#
+#./tools/sunxi-nand-image-builder -p 8192 -o 640 -e 0x200000 -b -u 4096 -c 64/1024 spl/sunxi-spl.bin spl/sunxi-spl-with-ecc.bin
+#
+CONFIG_NAND_SUNXI_SPL_ECC_STRENGTH=64
+CONFIG_NAND_SUNXI_SPL_ECC_SIZE=1024
+CONFIG_NAND_SUNXI_SPL_USABLE_PAGE_SIZE=4096
+CONFIG_SYS_NAND_PAGE_SIZE=8192
+CONFIG_SYS_NAND_OOBSIZE=640
+CONFIG_SYS_NAND_BLOCK_SIZE=0x200000
+#
+#cmd_sunxi_spl_image_builder = $(objtree)/tools/sunxi-spl-image-builder \
+#				-c $(CONFIG_NAND_SUNXI_SPL_ECC_STRENGTH)/$(CONFIG_NAND_SUNXI_SPL_ECC_SIZE) \
+#				-p $(CONFIG_SYS_NAND_PAGE_SIZE) \
+#				-o $(CONFIG_SYS_NAND_OOBSIZE) \
+#				-u $(CONFIG_NAND_SUNXI_SPL_USABLE_PAGE_SIZE) \
+#				-e $(CONFIG_SYS_NAND_BLOCK_SIZE) \
+#
