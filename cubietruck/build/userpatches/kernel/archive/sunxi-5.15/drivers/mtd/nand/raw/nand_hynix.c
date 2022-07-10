@@ -689,10 +689,7 @@ h27ucg8t2atrbc_choose_interface_config(struct nand_chip *chip,
 static int hynix_nand_init(struct nand_chip *chip)
 {
 	struct hynix_nand *hynix;
-	/* @mhoffrog */
 	struct mtd_info *mtd = nand_to_mtd(chip);
-	/* @mhoffrog - TODO remove after testing */
-	struct mtd_pairing_info pairing_info;
 	int ret;
 
 	if (!nand_is_slc(chip))
@@ -708,27 +705,9 @@ static int hynix_nand_init(struct nand_chip *chip)
 
 	if (!strncmp("H27UCG8T2ATR-BC", chip->parameters.model,
 		     sizeof("H27UCG8T2ATR-BC") - 1)) {
-		/* @mhoffrog - TODO remove after testing*/
-		int page;
-
 		chip->ops.choose_interface_config =
 			h27ucg8t2atrbc_choose_interface_config;
-		/* @mhoffrog */
 		mtd_set_pairing_scheme(mtd, &dist6_pairing_scheme);
-		/* @mhoffrog - TODO remove after testing { */
-		/* print for testing the scheme */
-		printk(KERN_INFO ">>>>>> Hynix %s pairing scheme - BEGIN:\n", chip->parameters.model);
-		printk(KERN_INFO "Hynix %s pairing scheme: mtd->writesize=%d, mtd->erasesize=%d\n", chip->parameters.model, mtd->writesize, mtd->erasesize);
-		/*                12123456123456123456123456 */
-		printk(KERN_INFO "  Page  Group Pair  Wunit\n");
-		for (page = 0; page < 256; page++) {
-			int wunit;
-			mtd->pairing->get_info(mtd, page, &pairing_info);
-			wunit = mtd->pairing->get_wunit(mtd, &pairing_info);
-			printk(KERN_INFO "  0x%02x  %d     %d     0x%02x\n", page, pairing_info.group, pairing_info.pair, wunit);
-		}
-		printk(KERN_INFO "<<<<<< Hynix %s pairing scheme - END\n", chip->parameters.model);
-		/* @mhoffrog } */
 	}
 
 	ret = hynix_nand_rr_init(chip);
