@@ -38,7 +38,8 @@ env:
   # U-Boot only:
   # REPOSITORY_INSTALL: "kernel,armbian-bsp-cli,armbian-bsp-desktop,armbian-desktop,armbian-config,armbian-firmware"
   REPOSITORY_INSTALL: ""
-  USE_MAINLINE_GOOGLE_MIRROR: yes
+  # Mainline google mirror does not work yet - root cause unknown
+  USE_MAINLINE_GOOGLE_MIRROR: no
 
 jobs:
   build:
@@ -92,7 +93,7 @@ jobs:
         id: build
         run: |
           cd armbian_build
-          sudo -E ./compile.sh BUILD_MINIMAL=$BUILD_MINIMAL KERNEL_ONLY=$KERNEL_ONLY KERNEL_CONFIGURE=$KERNEL_CONFIGURE BOARD=$BOARD BRANCH=$BRANCH RELEASE=$RELEASE BUILD_DESKTOP=$BUILD_DESKTOP REPOSITORY_INSTALL=$REPOSITORY_INSTALL USE_MAINLINE_GOOGLE_MIRROR=$USE_MAINLINE_GOOGLE_MIRROR FORCE_USE_RAMDISK=yes USE_CCACHE=yes SYNC_CLOCK_=no
+          sudo -E ./compile.sh BUILD_MINIMAL=$BUILD_MINIMAL KERNEL_ONLY=$KERNEL_ONLY KERNEL_CONFIGURE=$KERNEL_CONFIGURE BOARD=$BOARD BRANCH=$BRANCH RELEASE=$RELEASE BUILD_DESKTOP=$BUILD_DESKTOP REPOSITORY_INSTALL=$REPOSITORY_INSTALL USE_MAINLINE_GOOGLE_MIRROR=$USE_MAINLINE_GOOGLE_MIRROR FORCE_USE_RAMDISK=yes USE_CCACHE=yes SYNC_CLOCK=no
           #shopt -s dotglob
           # Update permission to cache - post cache task will fail otherwise
           sudo chmod -R 775 cache
