@@ -42,7 +42,7 @@ env:
 
 jobs:
   build:
-    name: Build Armbian for ${{ env.BOARD }}
+    name: Build Armbian
     runs-on: ubuntu-latest
     #if: github.event.repository.owner.id == github.event.sender.id
 
