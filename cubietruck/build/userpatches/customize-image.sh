@@ -36,7 +36,14 @@ Main() {
 			# your code here
 			;;
 	esac
+	InstallNANDBootFiles
 } # Main
+
+InstallNANDBootFiles() {
+	if [[ -d /tmp/overlay/boot ]]; then
+		cp --verbose -R /tmp/overlay/boot/* /boot
+	fi
+}
 
 InstallOpenMediaVault() {
 	# use this routine to create a Debian based fully functional OpenMediaVault
