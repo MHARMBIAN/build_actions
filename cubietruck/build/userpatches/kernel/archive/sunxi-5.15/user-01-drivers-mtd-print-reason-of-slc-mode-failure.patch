@@ -1,0 +1,27 @@
+diff --git a/drivers/mtd/mtdcore.c b/drivers/mtd/mtdcore.c
+index 61f236e03..721a51e60 100644
+--- a/drivers/mtd/mtdcore.c
++++ b/drivers/mtd/mtdcore.c
+@@ -611,8 +611,21 @@ int add_mtd_device(struct mtd_info *mtd)
+ 	 */
+ 	if (mtd->flags & MTD_SLC_ON_MLC_EMULATION &&
+ 	    (!mtd_is_partition(mtd) || master->type != MTD_MLCNANDFLASH ||
+-	     !master->pairing || master->_writev))
++	     !master->pairing || master->_writev)) {
++		if (!mtd_is_partition(mtd)) {
++			printk(KERN_WARNING "%s: SLC mode rejected since of: !mtd_is_partition(mtd)\n", mtd->name);
++		}
++		if (master->type != MTD_MLCNANDFLASH) {
++			printk(KERN_WARNING "%s: SLC mode rejected since of: master->type != MTD_MLCNANDFLASH\n", mtd->name);
++		}
++		if (!master->pairing) {
++			printk(KERN_WARNING "%s: SLC mode rejected since of: !master->pairing\n", mtd->name);
++		}
++		if (master->_writev) {
++			printk(KERN_WARNING "%s: SLC mode rejected since of: master->_writev\n", mtd->name);
++		}
+ 		return -EINVAL;
++	}
+ 
+ 	mutex_lock(&mtd_table_mutex);
+ 
