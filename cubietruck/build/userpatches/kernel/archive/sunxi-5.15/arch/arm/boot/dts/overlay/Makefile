@@ -43,6 +43,8 @@ dtbo-$(CONFIG_MACH_SUN7I) += \
 	sun7i-a20-i2c4.dtbo \
 	sun7i-a20-mmc2.dtbo \
 	sun7i-a20-nand.dtbo \
+	sun7i-a20-nand-8G-2M-UBI.dtbo \
+	sun7i-a20-nand-16G-4M-UBI.dtbo \
 	sun7i-a20-pps-gpio.dtbo \
 	sun7i-a20-pwm.dtbo \
 	sun7i-a20-spdif-out.dtbo \
