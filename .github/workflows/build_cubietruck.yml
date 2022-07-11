@@ -100,14 +100,14 @@ jobs:
           #shopt -u dotglob
           SDCARD_IMAGE_FILE="/tmp/Armbian_SDCard_Image_${BOARD}_${ARMBIAN_RELEASE_TAG}.tar.bz2"
           echo "::set-output name=SDCARD_IMAGE_FILE::${SDCARD_IMAGE_FILE}"
-          tar -cjvf ${SDCARD_IMAGE_FILE} output/images/*.img
+          tar --verbose -cjvf ${SDCARD_IMAGE_FILE} output/images/*.img
           echo "::set-output name=STATUS::success"
 
       - name: Upload Armbian SD card image
         uses: actions/upload-artifact@master
         if: steps.build.outputs.STATUS == 'success'
         with:
-          name: Armbian_SDCard_Image_${BOARD}_${ARMBIAN_RELEASE_TAG}
+          name: Armbian_SDCard_Image_${{ env.BOARD }}_${{ env.ARMBIAN_RELEASE_TAG }}
           path: |
             ${{ steps.build.outputs.SDCARD_IMAGE_FILE }}
 
