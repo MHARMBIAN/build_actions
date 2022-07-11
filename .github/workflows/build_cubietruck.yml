@@ -11,109 +11,31 @@ name: Build Armbian for Cubietruck
 
 on:
   workflow_dispatch:
-    # no parms
-  #release:
-  #  types: published
   #push:
   #  branches:
   #    - master
   #    - boards/cubietruck
   #schedule:
   #    - cron: 0 8 * * 5
-  #watch:
-  #  types: started
-
-env:
-  ARMBIAN_RELEASE_TAG: v2022.07.05
-  BUILD_MINIMAL: yes
-  KERNEL_ONLY: no
-  KERNEL_CONFIGURE: no
-  BOARD: cubietruck
-  BRANCH: current
-  RELEASE: focal
-  BUILD_DESKTOP: no
-  # REPOSITORY_INSTALL (comma-separated list): list of core packages which will be installed from repository
-  # Available options: u-boot, kernel, bsp, armbian-bsp-cli,armbian-bsp-desktop,armbian-desktop,armbian-config, armbian-firmware
-  # list, what is not wanted to be built
-  # U-Boot only:
-  # REPOSITORY_INSTALL: "kernel,armbian-bsp-cli,armbian-bsp-desktop,armbian-desktop,armbian-config,armbian-firmware"
-  REPOSITORY_INSTALL: ""
 
 jobs:
   build:
-    name: Build Armbian Image
-    runs-on: ubuntu-latest
-    #if: github.event.repository.owner.id == github.event.sender.id
-
-    steps:
-      - name: Checkout this repo
-        uses: actions/checkout@master
-
-      - name: Initialize environment
-        env:
-          DEBIAN_FRONTEND: noninteractive
-        run: |
-          #sudo swapoff /swapfile
-          #sudo rm -rf /swapfile /etc/apt/sources.list.d/* /usr/share/dotnet /usr/local/lib/android /opt/ghc
-          #sudo -E apt-get -qq autoremove --purge
-          #sudo -E apt-get -qq clean
-
-      - name: Download Armbian build source code
-        run: |
-          #curl -L -o armbian.tar.gz $(curl https://api.github.com/repos/armbian/build/releases | awk -F"[tarball_url]" '/tarball_url/{print $x}' | grep $ARMBIAN_RELEASE_TAG | sed 's/"//g' | sed 's/tarball_url://g' | sed 's/ //g' | sed 's/,//g')
-          curl -L -o armbian.tar.gz https://github.com/MHARMBIAN/armbian_build/archive/refs/tags/${ARMBIAN_RELEASE_TAG}.tar.gz
-          tar --verbose -xzf armbian.tar.gz
-          rm --verbose -rf armbian.tar.gz
-          mv --verbose armbian_build* armbian_build
-
-      - name: Cache Armbian
-        id: cache-armbian
-        uses: actions/cache@v3
-        env:
-          cache-name: cache-armbian-build
-        with:
-          # npm cache files are stored in `~/.npm` on Linux/macOS
-          path: |
-            armbian_build/cache/toolchain
-            armbian_build/cache/rootfs
-          key: ${{ runner.os }}-build-${{ env.cache-name }}
-          #key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
-          #restore-keys: |
-            #${{ runner.os }}-build-${{ env.cache-name }}-
-            #${{ runner.os }}-build-
-            #${{ runner.os }}-
-
-      - name: Copy userpatches to Armbian build dir
-        run: |
-          cp --verbose -R ${BOARD}/build/* armbian_build
-
-      - name: Build Armbian
-        id: build
-        run: |
-          cd armbian_build
-          sudo -E ./compile.sh BUILD_MINIMAL=$BUILD_MINIMAL KERNEL_ONLY=$KERNEL_ONLY KERNEL_CONFIGURE=$KERNEL_CONFIGURE BOARD=$BOARD BRANCH=$BRANCH RELEASE=$RELEASE BUILD_DESKTOP=$BUILD_DESKTOP REPOSITORY_INSTALL=$REPOSITORY_INSTALL COMPRESS_OUTPUTIMAGE=sha,gpg,7z SYNC_CLOCK=no
-          shopt -s dotglob
-          # Update permission to cache - post cache task will fail otherwise
-          sudo chmod -R 775 cache
-          shopt -u dotglob
-          ORIGINAL_IMAGE_BASE_NAME="$(basename -s .7z output/images/*.7z)"
-          FINAL_IMAGE_BASE_NAME="${ORIGINAL_IMAGE_BASE_NAME}_${ARMBIAN_RELEASE_TAG}"
-          # Rename image file:
-          mv --verbose "output/images/${ORIGINAL_IMAGE_BASE_NAME}.7z" "output/images/${FINAL_IMAGE_BASE_NAME}.7z"
-          echo "::set-output name=FINAL_IMAGE_BASE_NAME::${FINAL_IMAGE_BASE_NAME}"
-          echo "::set-output name=STATUS::success"
-
-      - name: Upload Armbian SD card image
-        uses: actions/upload-artifact@master
-        if: steps.build.outputs.STATUS == 'success'
-        with:
-          name: ${{ steps.build.outputs.FINAL_IMAGE_BASE_NAME }}
-          path: |
-            armbian_build/output/images/
-
-      - name: Upload Armbian build logfiles
-        uses: actions/upload-artifact@master
-        with:
-          name: Armbian_Build_LogFiles_${{ env.ARMBIAN_RELEASE_TAG }}
-          path: |
-            armbian_build/output/debug/
+    name: Build Armbian Image for Cubietruck
+    uses: MHARMBIAN/build_actions/.github/workflows/__build_armbian.yml@master
+    with:
+      runner: ubuntu-latest
+      uploading: true
+      ARMBIAN_RELEASE_TAG: v2022.07.05
+      BUILD_MINIMAL: yes
+      KERNEL_ONLY: no
+      KERNEL_CONFIGURE: no
+      BOARD: cubietruck
+      BRANCH: current
+      RELEASE: focal
+      BUILD_DESKTOP: no
+      # REPOSITORY_INSTALL (comma-separated list): list of core packages which will be installed from repository
+      # Available options: u-boot, kernel, bsp, armbian-bsp-cli,armbian-bsp-desktop,armbian-desktop,armbian-config, armbian-firmware
+      # list, what is not wanted to be built
+      # U-Boot only:
+      # REPOSITORY_INSTALL: "kernel,armbian-bsp-cli,armbian-bsp-desktop,armbian-desktop,armbian-config,armbian-firmware"
+      REPOSITORY_INSTALL: ""
