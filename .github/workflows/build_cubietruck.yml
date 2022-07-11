@@ -98,8 +98,9 @@ jobs:
           # Update permission to cache - post cache task will fail otherwise
           sudo chmod -R 775 cache
           #shopt -u dotglob
-          echo "::set-output name=SDCARD_IMAGE_FILE::/tmp/Armbian_SDCard_Image_${BOARD}_${ARMBIAN_RELEASE_TAG}.tar.bz2"
-          tar -cjvf ${{ steps.build.outputs.SDCARD_IMAGE_FILE }} output/images/*.img
+          SDCARD_IMAGE_FILE="/tmp/Armbian_SDCard_Image_${BOARD}_${ARMBIAN_RELEASE_TAG}.tar.bz2"
+          echo "::set-output name=SDCARD_IMAGE_FILE::${SDCARD_IMAGE_FILE}"
+          tar -cjvf ${SDCARD_IMAGE_FILE} output/images/*.img
           echo "::set-output name=STATUS::success"
 
       - name: Upload Armbian SD card image
