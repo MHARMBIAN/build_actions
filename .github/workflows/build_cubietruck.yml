@@ -43,7 +43,7 @@ env:
 
 jobs:
   build:
-    name: Build Armbian
+    name: Build Armbian Image
     runs-on: ubuntu-latest
     #if: github.event.repository.owner.id == github.event.sender.id
 
@@ -94,26 +94,28 @@ jobs:
         run: |
           cd armbian_build
           sudo -E ./compile.sh BUILD_MINIMAL=$BUILD_MINIMAL KERNEL_ONLY=$KERNEL_ONLY KERNEL_CONFIGURE=$KERNEL_CONFIGURE BOARD=$BOARD BRANCH=$BRANCH RELEASE=$RELEASE BUILD_DESKTOP=$BUILD_DESKTOP REPOSITORY_INSTALL=$REPOSITORY_INSTALL USE_MAINLINE_GOOGLE_MIRROR=$USE_MAINLINE_GOOGLE_MIRROR FORCE_USE_RAMDISK=yes USE_CCACHE=yes SYNC_CLOCK=no
-          #shopt -s dotglob
+          shopt -s dotglob
           # Update permission to cache - post cache task will fail otherwise
           sudo chmod -R 775 cache
-          #shopt -u dotglob
-          SDCARD_IMAGE_FILE="/tmp/Armbian_SDCard_Image_${BOARD}_${ARMBIAN_RELEASE_TAG}.tar.bz2"
-          echo "::set-output name=SDCARD_IMAGE_FILE::${SDCARD_IMAGE_FILE}"
-          tar --verbose -cjvf ${SDCARD_IMAGE_FILE} output/images/*.img
+          shopt -u dotglob
+          IMAGE_BASE_NAME="$(basename -s .img output/images/*.img)_${ARMBIAN_RELEASE_TAG}"
+          COMPRESSED_IMAGE_FILE="/tmp/${IMAGE_BASE_NAME}.tar.bz2"
+          echo "::set-output name=COMPRESSED_IMAGE_FILE::${COMPRESSED_IMAGE_FILE}"
+          echo "::set-output name=IMAGE_BASE_NAME::${IMAGE_BASE_NAME}"
+          tar --verbose -cjvf ${COMPRESSED_IMAGE_FILE} output/images/*.img
           echo "::set-output name=STATUS::success"
 
       - name: Upload Armbian SD card image
         uses: actions/upload-artifact@master
         if: steps.build.outputs.STATUS == 'success'
         with:
-          name: Armbian_SDCard_Image_${{ env.BOARD }}_${{ env.ARMBIAN_RELEASE_TAG }}
+          name: ${{ steps.build.outputs.IMAGE_BASE_NAME }}
           path: |
-            ${{ steps.build.outputs.SDCARD_IMAGE_FILE }}
+            ${{ steps.build.outputs.COMPRESSED_IMAGE_FILE }}
 
       - name: Upload Armbian build logfiles
         uses: actions/upload-artifact@master
         with:
-          name: Armbian_Build_LogFiles
+          name: Armbian_Build_LogFiles_${{ env.ARMBIAN_RELEASE_TAG }}
           path: |
             armbian_build/output/debug/
