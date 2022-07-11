@@ -7,7 +7,7 @@
 #   - have a NAND partition configured for an UBI filesystem
 #
 # ------------------------------------------------------------------------------------------
-name: Build Armbian image
+name: Build Armbian for Cubietruck
 
 on:
   workflow_dispatch:
@@ -38,8 +38,6 @@ env:
   # U-Boot only:
   # REPOSITORY_INSTALL: "kernel,armbian-bsp-cli,armbian-bsp-desktop,armbian-desktop,armbian-config,armbian-firmware"
   REPOSITORY_INSTALL: ""
-  # Mainline google mirror does not work yet - root cause unknown
-  USE_MAINLINE_GOOGLE_MIRROR: no
 
 jobs:
   build:
@@ -64,9 +62,9 @@ jobs:
         run: |
           #curl -L -o armbian.tar.gz $(curl https://api.github.com/repos/armbian/build/releases | awk -F"[tarball_url]" '/tarball_url/{print $x}' | grep $ARMBIAN_RELEASE_TAG | sed 's/"//g' | sed 's/tarball_url://g' | sed 's/ //g' | sed 's/,//g')
           curl -L -o armbian.tar.gz https://github.com/MHARMBIAN/armbian_build/archive/refs/tags/${ARMBIAN_RELEASE_TAG}.tar.gz
-          tar -xzf armbian.tar.gz
-          rm -rf armbian.tar.gz
-          mv armbian_build* armbian_build
+          tar --verbose -xzf armbian.tar.gz
+          rm --verbose -rf armbian.tar.gz
+          mv --verbose armbian_build* armbian_build
 
       - name: Cache Armbian
         id: cache-armbian
@@ -93,25 +91,25 @@ jobs:
         id: build
         run: |
           cd armbian_build
-          sudo -E ./compile.sh BUILD_MINIMAL=$BUILD_MINIMAL KERNEL_ONLY=$KERNEL_ONLY KERNEL_CONFIGURE=$KERNEL_CONFIGURE BOARD=$BOARD BRANCH=$BRANCH RELEASE=$RELEASE BUILD_DESKTOP=$BUILD_DESKTOP REPOSITORY_INSTALL=$REPOSITORY_INSTALL USE_MAINLINE_GOOGLE_MIRROR=$USE_MAINLINE_GOOGLE_MIRROR FORCE_USE_RAMDISK=yes USE_CCACHE=yes SYNC_CLOCK=no
+          sudo -E ./compile.sh BUILD_MINIMAL=$BUILD_MINIMAL KERNEL_ONLY=$KERNEL_ONLY KERNEL_CONFIGURE=$KERNEL_CONFIGURE BOARD=$BOARD BRANCH=$BRANCH RELEASE=$RELEASE BUILD_DESKTOP=$BUILD_DESKTOP REPOSITORY_INSTALL=$REPOSITORY_INSTALL COMPRESS_OUTPUTIMAGE=sha,gpg,7z SYNC_CLOCK=no
           shopt -s dotglob
           # Update permission to cache - post cache task will fail otherwise
           sudo chmod -R 775 cache
           shopt -u dotglob
-          IMAGE_BASE_NAME="$(basename -s .img output/images/*.img)_${ARMBIAN_RELEASE_TAG}"
-          COMPRESSED_IMAGE_FILE="/tmp/${IMAGE_BASE_NAME}.tar.bz2"
-          echo "::set-output name=COMPRESSED_IMAGE_FILE::${COMPRESSED_IMAGE_FILE}"
-          echo "::set-output name=IMAGE_BASE_NAME::${IMAGE_BASE_NAME}"
-          tar --verbose -cjvf ${COMPRESSED_IMAGE_FILE} output/images/*.img
+          ORIGINAL_IMAGE_BASE_NAME="$(basename -s .7z output/images/*.7z)"
+          FINAL_IMAGE_BASE_NAME="${ORIGINAL_IMAGE_BASE_NAME}_${ARMBIAN_RELEASE_TAG}"
+          # Rename image file:
+          mv --verbose "output/images/${ORIGINAL_IMAGE_BASE_NAME}.7z" "output/images/${FINAL_IMAGE_BASE_NAME}.7z"
+          echo "::set-output name=FINAL_IMAGE_BASE_NAME::${FINAL_IMAGE_BASE_NAME}"
           echo "::set-output name=STATUS::success"
 
       - name: Upload Armbian SD card image
         uses: actions/upload-artifact@master
         if: steps.build.outputs.STATUS == 'success'
         with:
-          name: ${{ steps.build.outputs.IMAGE_BASE_NAME }}
+          name: ${{ steps.build.outputs.FINAL_IMAGE_BASE_NAME }}
           path: |
-            ${{ steps.build.outputs.COMPRESSED_IMAGE_FILE }}
+            armbian_build/output/images/
 
       - name: Upload Armbian build logfiles
         uses: actions/upload-artifact@master
