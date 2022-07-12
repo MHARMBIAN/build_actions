@@ -139,14 +139,14 @@ jobs:
 
       - name: Upload Armbian SD card image
         uses: actions/upload-artifact@master
-        if: (inputs.uploading == 'true') && (steps.build.outputs.STATUS == 'success')
+        if: inputs.uploading == true && steps.build.outputs.STATUS == 'success'
         with:
           name: ${{ steps.build.outputs.FINAL_IMAGE_BASE_NAME }}
           path: |
             armbian_build/output/images/
 
       - name: Upload Armbian build logfiles
-        if: (inputs.uploading == 'true')
+        if: inputs.uploading == true
         uses: actions/upload-artifact@master
         with:
           name: Armbian_Build_LogFiles_${{ env.ARMBIAN_RELEASE_TAG }}
