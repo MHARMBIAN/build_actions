@@ -7,14 +7,14 @@
 #   - have a NAND partition configured for an UBI filesystem
 #
 # ------------------------------------------------------------------------------------------
-name: Build Armbian for Cubietruck
+name: Build Armbian for Cubietruck (dryrun)
 
 on:
   workflow_dispatch:
   push:
     tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+'
-      - 'v[0-9]+.[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-dryrun'
+      - 'v[0-9]+.[0-9]+.[0-9]+.[0-9]+-dryrun'
   #push:
   #  branches:
   #    - master
@@ -29,7 +29,7 @@ jobs:
     with:
       runner: ubuntu-latest
       uploading: true
-      dryrun: false
+      dryrun: true
       ARMBIAN_RELEASE_TAG: v2022.07.05
       BUILD_MINIMAL: yes
       KERNEL_ONLY: no

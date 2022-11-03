@@ -13,6 +13,10 @@ on:
       uploading:
         required: false
         type: boolean
+      # dryrun: if true, the output files will be simulated as just echoed text files
+      dryrun:
+        required: false
+        type: boolean
       ARMBIAN_RELEASE_TAG:
         required: true
         type: string
@@ -45,12 +49,26 @@ on:
       REPOSITORY_INSTALL:
         required: false
         type: string
+    outputs:
+      image_UploadArtifactName:
+        description: "The name of the upload artifact for the SD card image"
+        value: ${{ jobs.job1_Build.outputs.image_UploadArtifactName }}
+      logfiles_UploadArtifactName:
+        description: "The name of the upload artifact for the build process log files"
+        value: ${{ jobs.job1_Build.outputs.logfiles_UploadArtifactName }}
+      board_Name:
+        description: "The human readable hardware boardname"
+        value: ${{ jobs.job1_Build.outputs.board_Name }}
 
 jobs:
-  Build:
+  job1_Build:
     name: Build Armbian Image
     runs-on: ${{ inputs.runner }}
     #if: github.event.repository.owner.id == github.event.sender.id
+    outputs:
+      image_UploadArtifactName: ${{ steps.build.outputs.IMAGE_UPLOAD_ARTIFACT_NAME }}
+      logfiles_UploadArtifactName: ${{ steps.build.outputs.LOGFILES_UPLOAD_ARTIFACT_NAME }}
+      board_Name: ${{ steps.build.outputs.BOARD_NAME }}
     steps:
       - name: Initialize Environment from Workflow Inputs
         run: |
@@ -68,6 +86,7 @@ jobs:
         run: |
           echo "  runner:              ${{ inputs.runner }}"
           echo "  uploading:           ${{ inputs.uploading }}"
+          echo "  dryrun:              ${{ inputs.dryrun }}"
           echo "  ARMBIAN_RELEASE_TAG: ${ARMBIAN_RELEASE_TAG}"
           echo "  BUILD_MINIMAL:       ${BUILD_MINIMAL}"
           echo "  BUILD_DESKTOP:       ${BUILD_DESKTOP}"
@@ -79,7 +98,7 @@ jobs:
           echo "  REPOSITORY_INSTALL:  ${REPOSITORY_INSTALL}"
 
       - name: Checkout this repo
-        uses: actions/checkout@master
+        uses: actions/checkout@v3
 
       - name: Download Armbian build source code
         run: |
@@ -114,41 +133,52 @@ jobs:
         id: build
         run: |
           cd armbian_build
-          sudo -E ./compile.sh \
-          BUILD_MINIMAL="${BUILD_MINIMAL}" \
-          KERNEL_ONLY="${KERNEL_ONLY}" \
-          KERNEL_CONFIGURE="${KERNEL_CONFIGURE}" \
-          BOARD="${BOARD}" \
-          BRANCH="${BRANCH}" \
-          RELEASE="${RELEASE}" \
-          BUILD_DESKTOP="${BUILD_DESKTOP}" \
-          REPOSITORY_INSTALL="${REPOSITORY_INSTALL}" \
-          COMPRESS_OUTPUTIMAGE="sha,gpg,7z" \
-          SYNC_CLOCK="no" \
-          FORCE_USE_RAMDISK="yes"
-          shopt -s dotglob
-          # Update permission to cache - post cache task will fail otherwise
-          sudo chmod -R 775 cache
-          shopt -u dotglob
+          if [[ "${{ inputs.dryrun }}" != "true" ]]; then
+            sudo -E ./compile.sh \
+            BUILD_MINIMAL="${BUILD_MINIMAL}" \
+            KERNEL_ONLY="${KERNEL_ONLY}" \
+            KERNEL_CONFIGURE="${KERNEL_CONFIGURE}" \
+            BOARD="${BOARD}" \
+            BRANCH="${BRANCH}" \
+            RELEASE="${RELEASE}" \
+            BUILD_DESKTOP="${BUILD_DESKTOP}" \
+            REPOSITORY_INSTALL="${REPOSITORY_INSTALL}" \
+            COMPRESS_OUTPUTIMAGE="sha,gpg,7z" \
+            SYNC_CLOCK="no" \
+            FORCE_USE_RAMDISK="yes"
+            shopt -s dotglob
+            # Update permission to cache - post cache task will fail otherwise
+            sudo chmod -R 775 cache
+            shopt -u dotglob
+          else
+            mkdir -p output/{images,debug}
+            FAKED_BUILD_7Z_FILE_NAME="Armbian_22.08.0-dryrun_${BOARD^}_${RELEASE}_${BRANCH}_5.15.52_minimal.7z"
+            echo "This is a faked .7z build output!" > "output/images/${FAKED_BUILD_7Z_FILE_NAME}"
+            echo "This is a faked build output logfile!" > output/debug/compilation.log
+            echo "This is a faked build output logfile!" > output/debug/compiler.log
+          fi
           ORIGINAL_IMAGE_BASE_NAME="$(basename -s .7z output/images/*.7z)"
           FINAL_IMAGE_BASE_NAME="${ORIGINAL_IMAGE_BASE_NAME}_${ARMBIAN_RELEASE_TAG}"
           # Rename image file:
           sudo -E mv --verbose "output/images/${ORIGINAL_IMAGE_BASE_NAME}.7z" "output/images/${FINAL_IMAGE_BASE_NAME}.7z"
-          echo "::set-output name=FINAL_IMAGE_BASE_NAME::${FINAL_IMAGE_BASE_NAME}"
-          echo "::set-output name=STATUS::success"
+          # Set step outputs:
+          echo "IMAGE_UPLOAD_ARTIFACT_NAME=${FINAL_IMAGE_BASE_NAME}" >> $GITHUB_OUTPUT
+          echo "LOGFILES_UPLOAD_ARTIFACT_NAME=Armbian_Build_LogFiles_${ARMBIAN_RELEASE_TAG}" >> $GITHUB_OUTPUT
+          echo "BOARD_NAME=${BOARD^}" >> $GITHUB_OUTPUT
+          echo "STATUS=success" >> $GITHUB_OUTPUT
 
       - name: Upload Armbian SD card image
-        uses: actions/upload-artifact@master
+        uses: actions/upload-artifact@v3
         if: inputs.uploading == true && steps.build.outputs.STATUS == 'success'
         with:
-          name: ${{ steps.build.outputs.FINAL_IMAGE_BASE_NAME }}
+          name: ${{ steps.build.outputs.IMAGE_UPLOAD_ARTIFACT_NAME }}
           path: |
             armbian_build/output/images/
 
       - name: Upload Armbian build logfiles
         if: inputs.uploading == true
-        uses: actions/upload-artifact@master
+        uses: actions/upload-artifact@v3
         with:
-          name: Armbian_Build_LogFiles_${{ env.ARMBIAN_RELEASE_TAG }}
+          name: ${{ steps.build.outputs.LOGFILES_UPLOAD_ARTIFACT_NAME }}
           path: |
             armbian_build/output/debug/
