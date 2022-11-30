@@ -63,27 +63,34 @@ index 881e768f6..4a3b0e94e 100644
  {
  	int ret = 0;
 diff --git a/drivers/mtd/nand/raw/nand_hynix.c b/drivers/mtd/nand/raw/nand_hynix.c
-index a9f50c9af..958afe2e4 100644
+index a9f50c9af..127192c36 100644
 --- a/drivers/mtd/nand/raw/nand_hynix.c
 +++ b/drivers/mtd/nand/raw/nand_hynix.c
-@@ -689,6 +689,7 @@ h27ucg8t2atrbc_choose_interface_config(struct nand_chip *chip,
+@@ -686,6 +686,17 @@ h27ucg8t2atrbc_choose_interface_config(struct nand_chip *chip,
+ 	return nand_choose_best_sdr_timings(chip, iface, NULL);
+ }
+ 
++static int h27ucg8t2atrbc_init(struct nand_chip *chip)
++{
++	struct mtd_info *mtd = nand_to_mtd(chip);
++
++	chip->ops.choose_interface_config =
++		h27ucg8t2atrbc_choose_interface_config;
++	mtd_set_pairing_scheme(mtd, &dist6_pairing_scheme);
++
++	return 0;
++}
++
  static int hynix_nand_init(struct nand_chip *chip)
  {
  	struct hynix_nand *hynix;
-+	struct mtd_info *mtd = nand_to_mtd(chip);
- 	int ret;
- 
- 	if (!nand_is_slc(chip))
-@@ -703,9 +704,11 @@ static int hynix_nand_init(struct nand_chip *chip)
- 	nand_set_manufacturer_data(chip, hynix);
+@@ -704,8 +715,7 @@ static int hynix_nand_init(struct nand_chip *chip)
  
  	if (!strncmp("H27UCG8T2ATR-BC", chip->parameters.model,
--		     sizeof("H27UCG8T2ATR-BC") - 1))
-+		     sizeof("H27UCG8T2ATR-BC") - 1)) {
- 		chip->ops.choose_interface_config =
- 			h27ucg8t2atrbc_choose_interface_config;
-+		mtd_set_pairing_scheme(mtd, &dist6_pairing_scheme);
-+	}
+ 		     sizeof("H27UCG8T2ATR-BC") - 1))
+-		chip->ops.choose_interface_config =
+-			h27ucg8t2atrbc_choose_interface_config;
++		h27ucg8t2atrbc_init(chip);
  
  	ret = hynix_nand_rr_init(chip);
  	if (ret)

@@ -686,10 +686,20 @@ h27ucg8t2atrbc_choose_interface_config(struct nand_chip *chip,
 	return nand_choose_best_sdr_timings(chip, iface, NULL);
 }
 
+static int h27ucg8t2atrbc_init(struct nand_chip *chip)
+{
+	struct mtd_info *mtd = nand_to_mtd(chip);
+
+	chip->ops.choose_interface_config =
+		h27ucg8t2atrbc_choose_interface_config;
+	mtd_set_pairing_scheme(mtd, &dist6_pairing_scheme);
+
+	return 0;
+}
+
 static int hynix_nand_init(struct nand_chip *chip)
 {
 	struct hynix_nand *hynix;
-	struct mtd_info *mtd = nand_to_mtd(chip);
 	int ret;
 
 	if (!nand_is_slc(chip))
@@ -704,11 +714,8 @@ static int hynix_nand_init(struct nand_chip *chip)
 	nand_set_manufacturer_data(chip, hynix);
 
 	if (!strncmp("H27UCG8T2ATR-BC", chip->parameters.model,
-		     sizeof("H27UCG8T2ATR-BC") - 1)) {
-		chip->ops.choose_interface_config =
-			h27ucg8t2atrbc_choose_interface_config;
-		mtd_set_pairing_scheme(mtd, &dist6_pairing_scheme);
-	}
+		     sizeof("H27UCG8T2ATR-BC") - 1))
+		h27ucg8t2atrbc_init(chip);
 
 	ret = hynix_nand_rr_init(chip);
 	if (ret)
