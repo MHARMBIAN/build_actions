@@ -65,6 +65,34 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - TBD
 
 
+## [2022.11.30]
+
+### Versions
+- Armbian: v2022.07.05
+- U-Boot:  2021.10
+- Kernel:  5.15.52
+- Linux:   Ubuntu 20.04 LTS (Focal Fossa)
+
+### Fixed
+- SUNXI NAND SPL loading
+- Support MTD slc-mode partition for Hynix MLC NAND H27UCG8T2ATR-BC
+
+### Added
+- Userpatches for Armbian build:
+  - U-Boot 2021.10:
+    - Enable NAND SPL for the Cubietruck_defconfig
+    - Fix SUNXI NAND SPL loading
+  - Kernel 5.15:
+    - Overlay DTS for Cubietruck with NAND boot and a UBI partition with slc-mode
+    - MTD driver: Add pairing scheme for Hynix MLC NAND H27UCG8T2ATR-BC
+  - Linux:
+    - add mtd-utils to installed packages
+  - SDCard Image:
+    - add NAND SPL boot image and U-Boot with dtb image for flashing to NAND to<br>
+      `/usr/lib/linux-u-boot-current-cubietruck_22.11.0-trunk_armhf`
+    - NAND can be erased and flashed with system on the SD card
+
+
 ## [2022.07.05]
 
 ### Versions
@@ -101,5 +129,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - This is just a dummy placeholder to make the parser of GHCICD/release-notes-from-changelog@v1 happy!
 -->
 
-[Unreleased]: https://github.com/MHARMBIAN/build_actions/compare/v2022.07.05..HEAD
+[Unreleased]: https://github.com/MHARMBIAN/build_actions/compare/v2022.11.30..HEAD
+[2022.11.30]: https://github.com/MHARMBIAN/build_actions/compare/v2022.07.05..v2022.11.30
 [2022.07.05]: https://github.com/MHARMBIAN/build_actions/releases/tag/v2022.07.05
