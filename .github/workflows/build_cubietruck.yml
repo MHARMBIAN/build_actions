@@ -30,9 +30,9 @@ jobs:
       runner: ubuntu-latest
       uploading: true
       dryrun: false
-      ARMBIAN_RELEASE_TAG: v2022.07.05
+      ARMBIAN_RELEASE_TAG: v2022.11.30_wip
       BUILD_MINIMAL: yes
-      KERNEL_ONLY: no
+      BUILD_ONLY: ""
       KERNEL_CONFIGURE: no
       BOARD: cubietruck
       BRANCH: current

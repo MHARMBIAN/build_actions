@@ -26,8 +26,8 @@ on:
       BUILD_DESKTOP:
         required: true
         type: string
-      KERNEL_ONLY:
-        required: true
+      BUILD_ONLY:
+        required: false
         type: string
       KERNEL_CONFIGURE:
         required: true
@@ -75,7 +75,7 @@ jobs:
           echo "ARMBIAN_RELEASE_TAG=${{ inputs.ARMBIAN_RELEASE_TAG }}" >> $GITHUB_ENV
           echo "BUILD_MINIMAL=${{ inputs.BUILD_MINIMAL }}" >> $GITHUB_ENV
           echo "BUILD_DESKTOP=${{ inputs.BUILD_DESKTOP }}" >> $GITHUB_ENV
-          echo "KERNEL_ONLY=${{ inputs.KERNEL_ONLY }}" >> $GITHUB_ENV
+          echo "BUILD_ONLY=${{ inputs.BUILD_ONLY }}" >> $GITHUB_ENV
           echo "KERNEL_CONFIGURE=${{ inputs.KERNEL_CONFIGURE }}" >> $GITHUB_ENV
           echo "BOARD=${{ inputs.BOARD }}" >> $GITHUB_ENV
           echo "BRANCH=${{ inputs.BRANCH }}" >> $GITHUB_ENV
@@ -90,7 +90,7 @@ jobs:
           echo "  ARMBIAN_RELEASE_TAG: ${ARMBIAN_RELEASE_TAG}"
           echo "  BUILD_MINIMAL:       ${BUILD_MINIMAL}"
           echo "  BUILD_DESKTOP:       ${BUILD_DESKTOP}"
-          echo "  KERNEL_ONLY:         ${KERNEL_ONLY}"
+          echo "  BUILD_ONLY:          ${BUILD_ONLY}"
           echo "  KERNEL_CONFIGURE:    ${KERNEL_CONFIGURE}"
           echo "  BOARD:               ${BOARD}"
           echo "  BRANCH:              ${BRANCH}"
@@ -116,8 +116,7 @@ jobs:
         with:
           # npm cache files are stored in `~/.npm` on Linux/macOS
           path: |
-            armbian_build/cache/toolchain
-            armbian_build/cache/rootfs
+            armbian_build/cache/sources
           key: ${{ runner.os }}-build-${{ env.cache-name }}
           #key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
           #restore-keys: |
@@ -136,7 +135,7 @@ jobs:
           if [[ "${{ inputs.dryrun }}" != "true" ]]; then
             sudo -E ./compile.sh \
             BUILD_MINIMAL="${BUILD_MINIMAL}" \
-            KERNEL_ONLY="${KERNEL_ONLY}" \
+            BUILD_ONLY="${BUILD_ONLY}" \
             KERNEL_CONFIGURE="${KERNEL_CONFIGURE}" \
             BOARD="${BOARD}" \
             BRANCH="${BRANCH}" \
