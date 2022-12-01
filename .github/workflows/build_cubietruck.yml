@@ -30,7 +30,7 @@ jobs:
       runner: ubuntu-latest
       uploading: true
       dryrun: false
-      ARMBIAN_RELEASE_TAG: v2022.11.30_wip
+      ARMBIAN_RELEASE_TAG: v2022.11.30-wip
       BUILD_MINIMAL: yes
       BUILD_ONLY: ""
       KERNEL_CONFIGURE: no
