@@ -1,11 +1,11 @@
 diff --git a/configs/Cubietruck_defconfig b/configs/Cubietruck_defconfig
-index f5c294f5..72828cf5 100644
+index f8749ae6b6..05e2a492fc 100644
 --- a/configs/Cubietruck_defconfig
 +++ b/configs/Cubietruck_defconfig
-@@ -33,3 +33,76 @@ CONFIG_USB_OHCI_HCD=y
+@@ -32,3 +32,76 @@ CONFIG_USB_EHCI_HCD=y
+ CONFIG_USB_OHCI_HCD=y
  CONFIG_USB_MUSB_GADGET=y
  CONFIG_MMC_SUNXI_SLOT_EXTRA=2
- CONFIG_VIDEO_DE2=n
 +#
 +# Config for Mainline NAND boot:
 +#
@@ -60,11 +60,11 @@ index f5c294f5..72828cf5 100644
 +# As the SPL Makefile defines the following command:
 +#
 +#cmd_sunxi_spl_image_builder = $(objtree)/tools/sunxi-spl-image-builder \
-+#				-c $(CONFIG_NAND_SUNXI_SPL_ECC_STRENGTH)/$(CONFIG_NAND_SUNXI_SPL_ECC_SIZE) \
-+#				-p $(CONFIG_SYS_NAND_PAGE_SIZE) \
-+#				-o $(CONFIG_SYS_NAND_OOBSIZE) \
-+#				-u $(CONFIG_NAND_SUNXI_SPL_USABLE_PAGE_SIZE) \
-+#				-e $(CONFIG_SYS_NAND_BLOCK_SIZE) \
++#        -c $(CONFIG_NAND_SUNXI_SPL_ECC_STRENGTH)/$(CONFIG_NAND_SUNXI_SPL_ECC_SIZE) \
++#        -p $(CONFIG_SYS_NAND_PAGE_SIZE) \
++#        -o $(CONFIG_SYS_NAND_OOBSIZE) \
++#        -u $(CONFIG_NAND_SUNXI_SPL_USABLE_PAGE_SIZE) \
++#        -e $(CONFIG_SYS_NAND_BLOCK_SIZE) \
 +#
 +# This will end up to:
 +#   ./tools/sunxi-spl-image-builder -c 64/1024 -p 8192 -o 640 -u 4096 -e 0x200000 -s -b spl/sunxi-spl.bin spl/sunxi-spl-with-ecc.bin
@@ -78,4 +78,4 @@ index f5c294f5..72828cf5 100644
 +#   sudo flash_erase /dev/mtd3 0 0
 +#   sudo nandwrite -p /dev/mtd2 u-boot-dtb.img
 +#   sudo nandwrite -p /dev/mtd3 u-boot-dtb.img
-+#   
++#
