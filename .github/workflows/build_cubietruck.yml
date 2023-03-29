@@ -30,14 +30,15 @@ jobs:
       runner: ubuntu-latest
       uploading: true
       dryrun: false
-      ARMBIAN_RELEASE_TAG: v2022.12.09-wip
+      ARMBIAN_RELEASE_TAG: v2023.03.29-wip
       BUILD_MINIMAL: yes
-      BUILD_ONLY: ""
+      KERNEL_GIT: shallow
       KERNEL_CONFIGURE: no
       BOARD: cubietruck
-      BRANCH: current
-      RELEASE: focal
+      BRANCH: legacy
+      RELEASE: jammy
       BUILD_DESKTOP: no
+      IMAGE_COMPRESS_ENDING: xz
       # REPOSITORY_INSTALL (comma-separated list): list of core packages which will be installed from repository
       # Available options: u-boot, kernel, bsp, armbian-bsp-cli,armbian-bsp-desktop,armbian-desktop,armbian-config, armbian-firmware
       # list, what is not wanted to be built
@@ -65,6 +66,7 @@ jobs:
       - name: Log Uploaded Artifacts
         run: |
           echo "  image_UploadArtifactName:    ${{ needs.job1_Build.outputs.image_UploadArtifactName }}"
+          echo "  packages_UploadArtifactName: ${{ needs.job1_Build.outputs.packages_UploadArtifactName }}"
           echo "  logfiles_UploadArtifactName: ${{ needs.job1_Build.outputs.logfiles_UploadArtifactName }}"
 
   job3_Release:
@@ -75,5 +77,7 @@ jobs:
     with:
       runner: ubuntu-latest
       image_UploadArtifactName:    ${{ needs.job1_Build.outputs.image_UploadArtifactName }}
+      packages_UploadArtifactName: ${{ needs.job1_Build.outputs.packages_UploadArtifactName }}
       logfiles_UploadArtifactName: ${{ needs.job1_Build.outputs.logfiles_UploadArtifactName }}
       board_Name:                  ${{ needs.job1_Build.outputs.board_Name }}
+      image_CompressEnding:        ${{ needs.job1_Build.outputs.image_CompressEnding }}

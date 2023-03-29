@@ -26,7 +26,7 @@ on:
       BUILD_DESKTOP:
         required: true
         type: string
-      BUILD_ONLY:
+      KERNEL_GIT:
         required: false
         type: string
       KERNEL_CONFIGURE:
@@ -41,6 +41,9 @@ on:
       RELEASE:
         required: true
         type: string
+      IMAGE_COMPRESS_ENDING:
+        required: true
+        type: string
       # REPOSITORY_INSTALL (comma-separated list): list of core packages which will be installed from repository
       # Available options: u-boot, kernel, bsp, armbian-bsp-cli,armbian-bsp-desktop,armbian-desktop,armbian-config, armbian-firmware
       # list, what is not wanted to be built
@@ -53,12 +56,18 @@ on:
       image_UploadArtifactName:
         description: "The name of the upload artifact for the SD card image"
         value: ${{ jobs.job1_Build.outputs.image_UploadArtifactName }}
+      packages_UploadArtifactName:
+        description: "The name of the upload artifact for the build packages"
+        value: ${{ jobs.job1_Build.outputs.packages_UploadArtifactName }}
       logfiles_UploadArtifactName:
         description: "The name of the upload artifact for the build process log files"
         value: ${{ jobs.job1_Build.outputs.logfiles_UploadArtifactName }}
       board_Name:
         description: "The human readable hardware boardname"
         value: ${{ jobs.job1_Build.outputs.board_Name }}
+      image_CompressEnding:
+        description: "The compressed image file extension"
+        value: ${{ inputs.IMAGE_COMPRESS_ENDING }}
 
 jobs:
   job1_Build:
@@ -67,6 +76,7 @@ jobs:
     #if: github.event.repository.owner.id == github.event.sender.id
     outputs:
       image_UploadArtifactName: ${{ steps.build.outputs.IMAGE_UPLOAD_ARTIFACT_NAME }}
+      packages_UploadArtifactName: ${{ steps.build.outputs.PACKAGES_UPLOAD_ARTIFACT_NAME }}
       logfiles_UploadArtifactName: ${{ steps.build.outputs.LOGFILES_UPLOAD_ARTIFACT_NAME }}
       board_Name: ${{ steps.build.outputs.BOARD_NAME }}
     steps:
@@ -75,27 +85,29 @@ jobs:
           echo "ARMBIAN_RELEASE_TAG=${{ inputs.ARMBIAN_RELEASE_TAG }}" >> $GITHUB_ENV
           echo "BUILD_MINIMAL=${{ inputs.BUILD_MINIMAL }}" >> $GITHUB_ENV
           echo "BUILD_DESKTOP=${{ inputs.BUILD_DESKTOP }}" >> $GITHUB_ENV
-          echo "BUILD_ONLY=${{ inputs.BUILD_ONLY }}" >> $GITHUB_ENV
+          echo "KERNEL_GIT=${{ inputs.KERNEL_GIT }}" >> $GITHUB_ENV
           echo "KERNEL_CONFIGURE=${{ inputs.KERNEL_CONFIGURE }}" >> $GITHUB_ENV
           echo "BOARD=${{ inputs.BOARD }}" >> $GITHUB_ENV
           echo "BRANCH=${{ inputs.BRANCH }}" >> $GITHUB_ENV
           echo "RELEASE=${{ inputs.RELEASE }}" >> $GITHUB_ENV
           echo "REPOSITORY_INSTALL=${{ inputs.REPOSITORY_INSTALL }}" >> $GITHUB_ENV
+          echo "IMAGE_COMPRESS_ENDING=${{ inputs.IMAGE_COMPRESS_ENDING }}" >> $GITHUB_ENV
 
       - name: Log Environment
         run: |
-          echo "  runner:              ${{ inputs.runner }}"
-          echo "  uploading:           ${{ inputs.uploading }}"
-          echo "  dryrun:              ${{ inputs.dryrun }}"
-          echo "  ARMBIAN_RELEASE_TAG: ${ARMBIAN_RELEASE_TAG}"
-          echo "  BUILD_MINIMAL:       ${BUILD_MINIMAL}"
-          echo "  BUILD_DESKTOP:       ${BUILD_DESKTOP}"
-          echo "  BUILD_ONLY:          ${BUILD_ONLY}"
-          echo "  KERNEL_CONFIGURE:    ${KERNEL_CONFIGURE}"
-          echo "  BOARD:               ${BOARD}"
-          echo "  BRANCH:              ${BRANCH}"
-          echo "  RELEASE:             ${RELEASE}"
-          echo "  REPOSITORY_INSTALL:  ${REPOSITORY_INSTALL}"
+          echo "  runner:                ${{ inputs.runner }}"
+          echo "  uploading:             ${{ inputs.uploading }}"
+          echo "  dryrun:                ${{ inputs.dryrun }}"
+          echo "  ARMBIAN_RELEASE_TAG:   ${ARMBIAN_RELEASE_TAG}"
+          echo "  BUILD_MINIMAL:         ${BUILD_MINIMAL}"
+          echo "  BUILD_DESKTOP:         ${BUILD_DESKTOP}"
+          echo "  KERNEL_GIT:            ${KERNEL_GIT}"
+          echo "  KERNEL_CONFIGURE:      ${KERNEL_CONFIGURE}"
+          echo "  BOARD:                 ${BOARD}"
+          echo "  BRANCH:                ${BRANCH}"
+          echo "  RELEASE:               ${RELEASE}"
+          echo "  REPOSITORY_INSTALL:    ${REPOSITORY_INSTALL}"
+          echo "  IMAGE_COMPRESS_ENDING  ${IMAGE_COMPRESS_ENDING}"
 
       - name: Checkout this repo
         uses: actions/checkout@v3
@@ -112,12 +124,13 @@ jobs:
         id: cache-armbian
         uses: actions/cache@v3
         env:
-          cache-name: cache-armbian-build
+          cache-name: armbian-${{ env.BOARD }}-${{ env.ARMBIAN_RELEASE_TAG }}
         with:
           # npm cache files are stored in `~/.npm` on Linux/macOS
           path: |
-            armbian_build/cache/sources
-          key: ${{ runner.os }}-build-${{ env.cache-name }}
+            armbian_build/cache
+            armbian_build/output/debs
+          key: ${{ runner.os }}-${{ env.cache-name }}
           #key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
           #restore-keys: |
             #${{ runner.os }}-build-${{ env.cache-name }}-
@@ -132,17 +145,19 @@ jobs:
         id: build
         run: |
           cd armbian_build
+          # ensure to cleanup faked .deb files from probable cache since of a previous dry run
+          [[ -d output/debs ]] && rm -f output/debs/*this_is_no_*.deb
           if [[ "${{ inputs.dryrun }}" != "true" ]]; then
-            sudo -E ./compile.sh \
+            ./compile.sh \
             BUILD_MINIMAL="${BUILD_MINIMAL}" \
-            BUILD_ONLY="${BUILD_ONLY}" \
+            KERNEL_GIT="${KERNEL_GIT}" \
             KERNEL_CONFIGURE="${KERNEL_CONFIGURE}" \
             BOARD="${BOARD}" \
             BRANCH="${BRANCH}" \
             RELEASE="${RELEASE}" \
             BUILD_DESKTOP="${BUILD_DESKTOP}" \
             REPOSITORY_INSTALL="${REPOSITORY_INSTALL}" \
-            COMPRESS_OUTPUTIMAGE="sha,gpg,7z" \
+            COMPRESS_OUTPUTIMAGE="sha,gpg,${IMAGE_COMPRESS_ENDING}" \
             SYNC_CLOCK="no" \
             FORCE_USE_RAMDISK="yes"
             shopt -s dotglob
@@ -150,34 +165,44 @@ jobs:
             sudo chmod -R 775 cache
             shopt -u dotglob
           else
-            mkdir -p output/{images,debug}
-            FAKED_BUILD_7Z_FILE_NAME="Armbian_22.08.0-dryrun_${BOARD^}_${RELEASE}_${BRANCH}_5.15.52_minimal.7z"
-            echo "This is a faked .7z build output!" > "output/images/${FAKED_BUILD_7Z_FILE_NAME}"
-            echo "This is a faked build output logfile!" > output/debug/compilation.log
-            echo "This is a faked build output logfile!" > output/debug/compiler.log
+            mkdir -p output/{images,debs,logs}
+            FAKED_BUILD_COMPRESSED_FILE_NAME="Armbian_22.08.0-dryrun_${BOARD^}_${RELEASE}_${BRANCH}_5.15.52_minimal.${IMAGE_COMPRESS_ENDING}"
+            echo "This is a faked .${IMAGE_COMPRESS_ENDING} build output!" > "output/images/${FAKED_BUILD_COMPRESSED_FILE_NAME}"
+            echo "This is a faked build output logfile!" > output/logs/compilation.log
+            echo "This is a faked build output logfile!" > output/logs/compiler.log
+            [[ -z "$(ls -A output/debs)" ]] && echo "This is a faked build output package file!" > output/debs/__this_is_no_debian_package__.deb
           fi
-          ORIGINAL_IMAGE_BASE_NAME="$(basename -s .7z output/images/*.7z)"
+          ORIGINAL_IMAGE_BASE_NAME="$(basename -s .${IMAGE_COMPRESS_ENDING} output/images/*.${IMAGE_COMPRESS_ENDING})"
           FINAL_IMAGE_BASE_NAME="${ORIGINAL_IMAGE_BASE_NAME}_${ARMBIAN_RELEASE_TAG}"
           # Rename image file:
-          sudo -E mv --verbose "output/images/${ORIGINAL_IMAGE_BASE_NAME}.7z" "output/images/${FINAL_IMAGE_BASE_NAME}.7z"
+          sudo -E mv --verbose "output/images/${ORIGINAL_IMAGE_BASE_NAME}.${IMAGE_COMPRESS_ENDING}" "output/images/${FINAL_IMAGE_BASE_NAME}.${IMAGE_COMPRESS_ENDING}"
           # Set step outputs:
           echo "IMAGE_UPLOAD_ARTIFACT_NAME=${FINAL_IMAGE_BASE_NAME}" >> $GITHUB_OUTPUT
+          echo "PACKAGES_UPLOAD_ARTIFACT_NAME=Armbian_Build_Packages_${ARMBIAN_RELEASE_TAG}" >> $GITHUB_OUTPUT
           echo "LOGFILES_UPLOAD_ARTIFACT_NAME=Armbian_Build_LogFiles_${ARMBIAN_RELEASE_TAG}" >> $GITHUB_OUTPUT
           echo "BOARD_NAME=${BOARD^}" >> $GITHUB_OUTPUT
           echo "STATUS=success" >> $GITHUB_OUTPUT
 
       - name: Upload Armbian SD card image
-        uses: actions/upload-artifact@v3
         if: inputs.uploading == true && steps.build.outputs.STATUS == 'success'
+        uses: actions/upload-artifact@v3
         with:
           name: ${{ steps.build.outputs.IMAGE_UPLOAD_ARTIFACT_NAME }}
           path: |
             armbian_build/output/images/
 
-      - name: Upload Armbian build logfiles
+      - name: Upload Armbian Build Packages
+        if: inputs.uploading == true
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ steps.build.outputs.PACKAGES_UPLOAD_ARTIFACT_NAME }}
+          path: |
+            armbian_build/output/debs/
+
+      - name: Upload Armbian Build Logfiles
         if: inputs.uploading == true
         uses: actions/upload-artifact@v3
         with:
           name: ${{ steps.build.outputs.LOGFILES_UPLOAD_ARTIFACT_NAME }}
           path: |
-            armbian_build/output/debug/
+            armbian_build/output/logs/

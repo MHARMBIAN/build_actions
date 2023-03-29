@@ -13,10 +13,16 @@ on:
       image_UploadArtifactName:
         required: true
         type: string
+      packages_UploadArtifactName:
+        required: true
+        type: string
       logfiles_UploadArtifactName:
         required: true
         type: string
       board_Name:
+        required: true
+        type: string
+      image_CompressEnding:
         required: true
         type: string
 
@@ -59,8 +65,10 @@ jobs:
         run: |
           echo "  runner:                      ${{ inputs.runner }}"
           echo "  image_UploadArtifactName:    ${{ inputs.image_UploadArtifactName }}"
+          echo "  packages_UploadArtifactName: ${{ inputs.packages_UploadArtifactName }}"
           echo "  logfiles_UploadArtifactName: ${{ inputs.logfiles_UploadArtifactName }}"
           echo "  board_Name:                  ${{ inputs.board_Name }}"
+          echo "  image_CompressEnding:        ${{ inputs.image_CompressEnding }}"
           echo "  github.ref:                  ${{ github.ref }}"
           echo "  VERSION_TAG:                 ${{ env.VERSION_TAG }}"
           echo "  RELEASE_VERSION:             ${{ env.RELEASE_VERSION }}"
@@ -68,7 +76,7 @@ jobs:
 
       - name: Checkout this repo
         uses: actions/checkout@v3
-        
+
       - name: Create build and download directories
         run: |
           mkdir -p ${{ env.BUILD_DIR }}/artifacts/{images,logfiles}
@@ -79,6 +87,12 @@ jobs:
           name: ${{ inputs.image_UploadArtifactName }}
           path: ${{ env.BUILD_DIR }}/artifacts/images
 
+      - name: Download package artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ inputs.packages_UploadArtifactName }}
+          path: ${{ env.BUILD_DIR }}/artifacts/packages
+
       - name: Download logfile artifacts
         uses: actions/download-artifact@v3
         with:
@@ -88,13 +102,19 @@ jobs:
       - name: List download directories
         run: |
           ls -lR ${{ env.BUILD_DIR }}/artifacts
-          
+
+      - name: Zip packages
+        uses: GHCICD/action-zip@master
+        with:
+          files: ${{ env.BUILD_DIR }}/artifacts/packages/
+          dest: ${{ env.BUILD_DIR }}/${{ inputs.packages_UploadArtifactName }}.zip
+
       - name: Zip logfiles
         uses: GHCICD/action-zip@master
         with:
           files: ${{ env.BUILD_DIR }}/artifacts/logfiles/
           dest: ${{ env.BUILD_DIR }}/${{ inputs.logfiles_UploadArtifactName }}.zip
-      
+
       - name: Validate CHANGELOG.md for this release version
         # explanation of sed command:
         # 1. select lines between SED_VERSION_BEGIN_PATTERN and SED_VERSION_END_PATTERN
@@ -185,7 +205,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ env.VERSION_TAG }}
           name: ${{ env.RELEASE_NAME }}
-          artifacts: "${{ env.BUILD_DIR }}/artifacts/images/${{ inputs.image_UploadArtifactName }}.7z,${{ env.BUILD_DIR }}/${{ inputs.logfiles_UploadArtifactName }}.zip"
+          artifacts: "${{ env.BUILD_DIR }}/artifacts/images/${{ inputs.image_UploadArtifactName }}.${{ inputs.image_CompressEnding }},${{ env.BUILD_DIR }}/${{ inputs.packages_UploadArtifactName }}.zip,${{ env.BUILD_DIR }}/${{ inputs.logfiles_UploadArtifactName }}.zip"
           bodyFile: ${{ env.BUILD_DIR }}/RELEASE.md
 
 #
