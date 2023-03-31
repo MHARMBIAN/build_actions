@@ -30,12 +30,12 @@ jobs:
       runner: ubuntu-latest
       uploading: true
       dryrun: true
-      ARMBIAN_RELEASE_TAG: v2023.03.29-wip
+      ARMBIAN_RELEASE_TAG: v2023.03.30-wip
       BUILD_MINIMAL: yes
       KERNEL_GIT: shallow
       KERNEL_CONFIGURE: no
       BOARD: cubietruck
-      BRANCH: legacy
+      BRANCH: current
       RELEASE: jammy
       BUILD_DESKTOP: no
       IMAGE_COMPRESS_ENDING: xz
