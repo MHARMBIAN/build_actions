@@ -166,14 +166,18 @@ jobs:
             shopt -u dotglob
           else
             mkdir -p output/{images,debs,logs}
-            FAKED_BUILD_COMPRESSED_FILE_NAME="Armbian_22.08.0-dryrun_${BOARD^}_${RELEASE}_${BRANCH}_5.15.52_minimal.${IMAGE_COMPRESS_ENDING}"
+            FAKED_BUILD_COMPRESSED_FILE_NAME="Armbian_22.08.0-dryrun_${BOARD^}_${RELEASE}_${BRANCH}_5.15.52_minimal.img.${IMAGE_COMPRESS_ENDING}"
             echo "This is a faked .${IMAGE_COMPRESS_ENDING} build output!" > "output/images/${FAKED_BUILD_COMPRESSED_FILE_NAME}"
             echo "This is a faked build output logfile!" > output/logs/compilation.log
             echo "This is a faked build output logfile!" > output/logs/compiler.log
             [[ -z "$(ls -A output/debs)" ]] && echo "This is a faked build output package file!" > output/debs/__this_is_no_debian_package__.deb
           fi
           ORIGINAL_IMAGE_BASE_NAME="$(basename -s .${IMAGE_COMPRESS_ENDING} output/images/*.${IMAGE_COMPRESS_ENDING})"
-          FINAL_IMAGE_BASE_NAME="${ORIGINAL_IMAGE_BASE_NAME}_${ARMBIAN_RELEASE_TAG}"
+          if [[ $ORIGINAL_IMAGE_BASE_NAME == *.img ]]; then
+            FINAL_IMAGE_BASE_NAME="$(basename -s .img ${ORIGINAL_IMAGE_BASE_NAME})_${ARMBIAN_RELEASE_TAG}.img"
+          else
+            FINAL_IMAGE_BASE_NAME="${ORIGINAL_IMAGE_BASE_NAME}_${ARMBIAN_RELEASE_TAG}"
+          fi
           # Rename image file:
           sudo -E mv --verbose "output/images/${ORIGINAL_IMAGE_BASE_NAME}.${IMAGE_COMPRESS_ENDING}" "output/images/${FINAL_IMAGE_BASE_NAME}.${IMAGE_COMPRESS_ENDING}"
           # Set step outputs:
