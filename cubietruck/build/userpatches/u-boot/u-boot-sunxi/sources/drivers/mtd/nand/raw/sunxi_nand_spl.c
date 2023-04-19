@@ -12,6 +12,7 @@
 #include <linux/bitops.h>
 #include <linux/ctype.h>
 #include <linux/delay.h>
+#include <linux/mtd/rawnand.h>
 
 /* registers */
 #define NFC_CTL                    0x00000000
@@ -251,25 +252,33 @@ static int nand_change_column(u16 column)
 	return 0;
 }
 
+static void nand_randomizer_enable(const struct nfc_config *conf)
+{
+	if (!(conf->randomize))
+		return;
+
+	writel(readl(SUNXI_NFC_BASE + NFC_ECC_CTL) | NFC_ECC_RANDOM_EN,
+	       SUNXI_NFC_BASE + NFC_ECC_CTL);
+}
+
+static void nand_randomizer_disable(const struct nfc_config *conf)
+{
+	if (!(conf->randomize))
+		return;
+
+	writel(readl(SUNXI_NFC_BASE + NFC_ECC_CTL) & ~NFC_ECC_RANDOM_EN,
+	       SUNXI_NFC_BASE + NFC_ECC_CTL);
+}
+
 static const int ecc_bytes[] = {32, 46, 54, 60, 74, 88, 102, 110, 116};
 
-static int nand_read_page(const struct nfc_config *conf, u32 offs,
-			  void *dest, int len)
+static int nand_read_page_hw_ecc(const struct nfc_config *conf,
+								 void *dest, int len)
 {
 	int nsectors = len / conf->ecc_size;
-	u16 rand_seed = 0;
 	int oob_chunk_sz = ecc_bytes[conf->ecc_strength];
-	int page = offs / conf->page_size;
 	u32 ecc_st;
 	int i;
-
-	if (offs % conf->page_size || len % conf->ecc_size ||
-	    len > conf->page_size || len < 0)
-		return -EINVAL;
-
-	/* Choose correct seed if randomized */
-	if (conf->randomize)
-		rand_seed = random_seed[page % conf->nseeds];
 
 	/* Retrieve data from SRAM (PIO) */
 	for (i = 0; i < nsectors; i++) {
@@ -279,51 +288,111 @@ static int nand_read_page(const struct nfc_config *conf, u32 offs,
 
 		/* Clear ECC status and restart ECC engine */
 		writel(0, SUNXI_NFC_BASE + NFC_ECC_ST);
+		/* @patch - this is now done outside by the calling nand_read_page
 		writel((rand_seed << 16) | (conf->ecc_strength << 12) |
 		       (conf->randomize ? NFC_ECC_RANDOM_EN : 0) |
 		       (conf->ecc_size == 512 ? NFC_ECC_BLOCK_SIZE : 0) |
 		       NFC_ECC_EN | NFC_ECC_EXCEPTION,
 		       SUNXI_NFC_BASE + NFC_ECC_CTL);
-
+		*/
+		
 		/* Move the data in SRAM */
 		nand_change_column(data_off);
 		writel(conf->ecc_size, SUNXI_NFC_BASE + NFC_CNT);
+		/* @patch - randomizer enable */
+		nand_randomizer_enable(conf);
 		nand_exec_cmd(NFC_DATA_TRANS);
-
+		/* @patch - randomizer disable */
+		nand_randomizer_disable(conf);
+			
 		/*
 		 * Let the ECC engine consume the ECC bytes and possibly correct
 		 * the data.
 		 */
 		nand_change_column(oob_off);
+		/* @patch - randomizer enable */
+		nand_randomizer_enable(conf);
 		nand_exec_cmd(NFC_DATA_TRANS | NFC_ECC_CMD);
+		/* @patch - randomizer disable */
+		nand_randomizer_disable(conf);
 
 		/* Get the ECC status */
 		ecc_st = readl(SUNXI_NFC_BASE + NFC_ECC_ST);
 
 		/* ECC error detected. */
-		if (ecc_st & 0xffff)
+		if (ecc_st & 0xffff) {
+			/* @patch */
+			if (conf->valid)
+				printf("NAND SPL - nand_read_page_hw_ecc: ECC error bits - ecc_st=%08x, sector=%d\n", ecc_st, i);
 			return -EIO;
+		}
 
 		/*
 		 * Return 1 if the first chunk is empty (needed for
 		 * configuration detection).
 		 */
-		if (!i && (ecc_st & 0x10000))
+		if (!i && (ecc_st & 0x10000)) {
+			/* @patch */
+			printf("NAND SPL - nand_read_page_hw_ecc: ECC empty - ecc_st=%08x, sector=%d\n", ecc_st, i);
 			return 1;
+		}
+
+		/* @patch */
+		if (ecc_st & 0x10000) {
+			printf("NAND SPL - nand_read_page_hw_ecc: ECC empty UNDETERMINED! - ecc_st=%08x, sector=%d\n", ecc_st, i);
+		}
 
 		/* Retrieve the data from SRAM */
 		memcpy_fromio(data, SUNXI_NFC_BASE + NFC_RAM0_BASE,
 			      conf->ecc_size);
 
 		/* Stop the ECC engine */
+		/* @patch - this is now done outside by the calling nand_read_page
 		writel(readl(SUNXI_NFC_BASE + NFC_ECC_CTL) & ~NFC_ECC_EN,
 		       SUNXI_NFC_BASE + NFC_ECC_CTL);
+		*/
 
 		if (data_off + conf->ecc_size >= len)
 			break;
 	}
 
 	return 0;
+}
+
+static int nand_read_page(const struct nfc_config *conf, u32 offs,
+			  void *dest, int len)
+{
+	u16 rand_seed = 0;
+	int page = offs / conf->page_size;
+
+	if (offs % conf->page_size || len % conf->ecc_size ||
+	    len > conf->page_size || len < 0) {
+		/* @patch */
+		printf("NAND SPL - nand_read_page: invalid parameters offs=%08x, len=%d (conf->page_size=%d, conf->ecc_size=%d)\n", offs, len, conf->page_size, conf->ecc_size);
+		return -EINVAL;
+	}
+	/* Choose correct seed if randomized */
+	if (conf->randomize)
+		rand_seed = random_seed[page % conf->nseeds];
+	
+	/* Start the ECC engine */
+	writel((rand_seed << 16) | (conf->ecc_strength << 12) |
+	       (conf->ecc_size == 512 ? NFC_ECC_BLOCK_SIZE : 0) |
+	       NFC_ECC_EN | NFC_ECC_EXCEPTION,
+	       SUNXI_NFC_BASE + NFC_ECC_CTL);
+
+	int ret = nand_read_page_hw_ecc(conf, dest, len);
+	
+	/* Stop the ECC engine */
+	writel(readl(SUNXI_NFC_BASE + NFC_ECC_CTL) & ~NFC_ECC_EN,
+	       SUNXI_NFC_BASE + NFC_ECC_CTL);
+	
+	if (ret) {
+		if (conf->valid)
+			printf("NAND SPL - nand_read_page: ECC error - rand_seed=%04x, page=%d, offs=%08x\n", rand_seed, page, offs);
+	}
+	
+	return ret;
 }
 
 static int nand_max_ecc_strength(struct nfc_config *conf)
@@ -464,6 +533,23 @@ static int nand_detect_config(struct nfc_config *conf, u32 offs, void *dest)
 
 			if (!nand_detect_ecc_config(conf, offs, dest)) {
 				conf->valid = true;
+				/* @patch */
+				puts("NAND SPL - NFC config determined:\n");
+				/*
+				int page_size;
+				int ecc_strength;
+				int ecc_size;
+				int addr_cycles;
+				int nseeds;
+				bool randomize;
+				bool valid;
+				*/
+				printf("  page_size:    %d\n", conf->page_size);
+				printf("  ecc_strength: %d\n", conf->ecc_strength);
+				printf("  ecc_size:     %d\n", conf->ecc_size);
+				printf("  addr_cycles:  %d\n", conf->addr_cycles);
+				printf("  nseeds:       %d\n", conf->nseeds);
+				printf("  randomize:    %s\n", conf->randomize ? "true" : "false");
 				return 0;
 			}
 		}
@@ -482,9 +568,14 @@ static int nand_read_buffer(struct nfc_config *conf, uint32_t offs,
 	if (conf->randomize)
 		first_seed = page % conf->nseeds;
 
+	/* @patch */
+	printf("NAND SPL - nand_read_buffer: starting with aligned size=%d, page=%d, offs=%08x, total pages=%d\n", size, page, offs, (size / conf->page_size));
 	for (; size; size -= conf->page_size) {
-		if (nand_load_page(conf, offs))
+		if (nand_load_page(conf, offs)) {
+			/* @patch */
+			printf("NAND SPL - nand_read_buffer: nand_load_page failed at page=%d, offs=%08x\n", page, offs);
 			return -1;
+		}
 
 		ret = nand_read_page(conf, offs, dest, conf->page_size);
 		/*
@@ -499,20 +590,33 @@ static int nand_read_buffer(struct nfc_config *conf, uint32_t offs,
 			 * We already tried all the seed values => we are
 			 * facing a real corruption.
 			 */
-			if (cur_seed < first_seed)
+			if (cur_seed < first_seed) {
+				/* @patch */
+				printf("NAND SPL - nand_read_buffer: cur_seed=%d < first_seed=%d at page=%d, offs=%08x\n", cur_seed, first_seed, page, offs);
 				return -EIO;
+			}
 
 			/* Try to adjust ->nseeds and read the page again... */
+			/* @patch - never do this!
 			conf->nseeds = cur_seed;
+			printf("NAND SPL - nand_read_buffer: adjusted conf->nseeds to cur_seed=%d at page=%d, offs=%08x\n", cur_seed, page, offs);
+			*/
 
-			if (nand_change_column(0))
+			if (nand_change_column(0)) {
+				/* @patch */
+				printf("NAND SPL - nand_read_buffer: nand_change_column(0) failed at page=%d, offs=%08x\n", page, offs);
 				return -EIO;
+			}
 
 			/* ... it still fails => it's a real corruption. */
-			if (nand_read_page(conf, offs, dest, conf->page_size))
+			if (nand_read_page(conf, offs, dest, conf->page_size)) {
+				printf("NAND SPL - nand_read_buffer: nand_read_page failed on retry at page=%d, offs=%08x\n", page, offs);
 				return -EIO;
+			}
 		} else if (ret && conf->randomize) {
 			memset(dest, 0xff, conf->page_size);
+			/* @patch */
+			printf("NAND SPL - nand_read_buffer: fill with 0xff at page=%d, offs=%08x\n", page, offs);
 		}
 
 		page++;
