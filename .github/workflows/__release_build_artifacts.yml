@@ -103,6 +103,12 @@ jobs:
         run: |
           ls -lR ${{ env.BUILD_DIR }}/artifacts
 
+      - name: Zip image files
+        uses: GHCICD/action-zip@master
+        with:
+          files: ${{ env.BUILD_DIR }}/artifacts/images/
+          dest: ${{ env.BUILD_DIR }}/${{ inputs.image_UploadArtifactName }}.zip
+
       - name: Zip packages
         uses: GHCICD/action-zip@master
         with:
@@ -205,7 +211,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ env.VERSION_TAG }}
           name: ${{ env.RELEASE_NAME }}
-          artifacts: "${{ env.BUILD_DIR }}/artifacts/images/${{ inputs.image_UploadArtifactName }}.${{ inputs.image_CompressEnding }},${{ env.BUILD_DIR }}/${{ inputs.packages_UploadArtifactName }}.zip,${{ env.BUILD_DIR }}/${{ inputs.logfiles_UploadArtifactName }}.zip"
+          artifacts: "${{ env.BUILD_DIR }}/${{ inputs.image_UploadArtifactName }}.zip,${{ env.BUILD_DIR }}/${{ inputs.packages_UploadArtifactName }}.zip,${{ env.BUILD_DIR }}/${{ inputs.logfiles_UploadArtifactName }}.zip"
           bodyFile: ${{ env.BUILD_DIR }}/RELEASE.md
 
 #
