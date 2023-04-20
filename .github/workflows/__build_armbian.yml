@@ -180,6 +180,10 @@ jobs:
           fi
           # Rename image files:
           for file in output/images/${ORIGINAL_IMAGE_BASE_NAME}.* ; do sudo -E mv --verbose $file ${file//${ORIGINAL_IMAGE_BASE_NAME}/${FINAL_IMAGE_BASE_NAME}} ; done
+          # Replace file names in .txt file:
+          if [[ -f output/images/${FINAL_IMAGE_BASE_NAME}.txt ]]; then
+            sudo -E sed -i "s/${ORIGINAL_IMAGE_BASE_NAME}/${FINAL_IMAGE_BASE_NAME}/g" output/images/${FINAL_IMAGE_BASE_NAME}.txt
+          fi
           # Set step outputs:
           echo "IMAGE_UPLOAD_ARTIFACT_NAME=${FINAL_IMAGE_BASE_NAME}" >> $GITHUB_OUTPUT
           echo "PACKAGES_UPLOAD_ARTIFACT_NAME=Armbian_Build_Packages_${ARMBIAN_RELEASE_TAG}" >> $GITHUB_OUTPUT
